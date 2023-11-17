@@ -3,10 +3,11 @@
  * ~ picture room
  * authored by 9r3i
  * https://github.com/9r3i/proom
- * started at september 27th 2023
+ * started at september 27th 2023 - v1.0.0
+ * continued at november 17th 2023 - v1.1.0
  **/
 const proom={
-  version:'1.0.0',
+  version:'1.1.0',
   defText:null,
   answers:null,
   levelMax:null,
@@ -46,14 +47,16 @@ const proom={
   init:function(){
     let prep=this.create('div','Initializing...');
     prep.appendTo(document.body);
-    let meta=document.querySelector('meta[name="proom:repo"]');
-    if(!meta||!meta.content){
-      prep.innerText='Error: Invalid repo.'
-      return;
+    if(typeof PROOM_GALLERY==='undefined'){
+      let meta=document.querySelector('meta[name="proom:repo"]');
+      if(!meta||!meta.content){
+        prep.innerText='Error: Invalid repo.'
+        return;
+      }
+      let srepo=document.createElement('script');
+      srepo.src=meta.content;
+      document.head.appendChild(srepo);
     }
-    let srepo=document.createElement('script');
-    srepo.src=meta.content;
-    document.head.appendChild(srepo);
     this.onReady(r=>{
       if(typeof PROOM_GALLERY==='undefined'){
         prep.innerText='Error: Failed to connect to "'
@@ -89,19 +92,25 @@ const proom={
     this.next=typeof data.next!=='undefined'?data.next:'Next';
     /* __get request setup */
     let search=window.location.search.substr(1),
-    digit=search.match(/^(\d+)/),
-    stage=digit?parseInt(digit[1]):0,
-    gkey=(stage).toString().padStart(3,'0'),
-    gdata=this.gallery[gkey];
-    /* dynamic setup */
-    this.defText=gdata.fullname;
-    this.levelMax=gdata.x;
-    this.stage=stage;
+    digit=search.match(/^stage=(\d+)/);
+    if(digit){
+      let stage=digit?parseInt(digit[1]):0,
+      gkey=(stage).toString().padStart(3,'0');
+      if(!this.gallery.hasOwnProperty(gkey)){
+        document.body.innerText='Error: Stage is not available.';
+        return;
+      }
+      let gdata=this.gallery[gkey];
+      /* dynamic setup */
+      this.defText=gdata.title.toString();
+      this.levelMax=parseInt(gdata.level);
+      this.stage=stage;
+    }
     /* initialize list */
     return this.initializeList();
   },
   initializeList:function(){
-    if(window.location.search.substr(1).match(/^\d+/)){
+    if(window.location.search.substr(1).match(/^stage=\d+/)){
       /* body style setup */
       document.body.style.margin='0px';
       document.body.style.padding='0px';
@@ -118,11 +127,11 @@ const proom={
       let gkey=parseInt(key),
       gfirst=ufirst?false:true,
       gdata=this.gallery[key],
-      gline=this.create('div',gdata.fullname,this.styleList(gfirst));
+      gline=this.create('div','['+key+'] '+gdata.title,this.styleList(gfirst));
       gline.appendTo(prep);
       gline.dataset.key=gkey.toString();
       gline.onclick=function(e){
-        window.location.assign('?'+this.dataset.key);
+        window.location.assign('?stage='+this.dataset.key);
       };
       gline.ontouchstart=function(e){
         this.style.backgroundColor='#eed';
@@ -168,8 +177,10 @@ const proom={
     return this.start();
   },
   levelURL:function(add=0){
-    return this.room+'?pswd='+this.pswd+'&url='
-      +this.repo+'stage.'
+    add=add%1===0?add:0;
+    let room=this.room===''?''
+      :this.room+'?pswd='+this.pswd+'&url=';
+    return room+this.repo+'stage.'
       +this.stage.toString().padStart(3,'0')+'/'
       +'level.'
       +(this.level+add).toString().padStart(3,'0')+'.'
